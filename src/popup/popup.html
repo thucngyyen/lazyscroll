@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LazyScroll</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <div class="container">
+    <h1>LazyScroll</h1>
+    <p class="subtitle">Scroll posts with your keyboard</p>
+
+    <div class="setting">
+      <label>Scroll Hotkey</label>
+      <div class="hotkey-row">
+        <kbd id="hotkey-display">Space</kbd>
+        <button id="capture-btn" type="button">Change</button>
+      </div>
+      <p class="hint" id="capture-hint" hidden>Press any key to set as hotkey</p>
+    </div>
+
+    <div class="setting toggle-row">
+      <label for="reverse-toggle">Shift + Hotkey to scroll back</label>
+      <input type="checkbox" id="reverse-toggle" checked />
+    </div>
+
+    <div class="setting toggle-row">
+      <label for="enabled-toggle">Enabled</label>
+      <input type="checkbox" id="enabled-toggle" checked />
+    </div>
+
+    <button id="reset-btn" type="button" class="secondary">Reset to Defaults</button>
+
+    <div id="status" class="status" hidden></div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

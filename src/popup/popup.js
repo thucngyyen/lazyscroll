@@ -1,0 +1,112 @@
+// Popup settings UI
+const STORAGE_KEY = 'lazyscroll_settings';
+const DEFAULT_SETTINGS = {
+  hotkey: ' ',
+  reverseModifier: 'Shift',
+  enabled: true
+};
+
+let settings = { ...DEFAULT_SETTINGS };
+let capturing = false;
+
+const els = {
+  hotkeyDisplay: document.getElementById('hotkey-display'),
+  captureBtn: document.getElementById('capture-btn'),
+  captureHint: document.getElementById('capture-hint'),
+  reverseToggle: document.getElementById('reverse-toggle'),
+  enabledToggle: document.getElementById('enabled-toggle'),
+  resetBtn: document.getElementById('reset-btn'),
+  status: document.getElementById('status')
+};
+
+function displayKey(key) {
+  if (!key || key === ' ') return 'Space';
+  if (key === 'Escape') return 'Esc';
+  return key.length === 1 ? key.toUpperCase() : key;
+}
+
+async function load() {
+  try {
+    const result = await chrome.storage.sync.get(STORAGE_KEY);
+    if (result[STORAGE_KEY]) {
+      settings = { ...DEFAULT_SETTINGS, ...result[STORAGE_KEY] };
+    }
+  } catch (e) {
+    showStatus('Failed to load settings', true);
+  }
+  render();
+}
+
+function render() {
+  els.hotkeyDisplay.textContent = displayKey(settings.hotkey);
+  els.reverseToggle.checked = settings.reverseModifier === 'Shift';
+  els.enabledToggle.checked = settings.enabled;
+}
+
+async function save() {
+  try {
+    await chrome.storage.sync.set({ [STORAGE_KEY]: settings });
+    showStatus('Saved');
+  } catch (e) {
+    showStatus('Failed to save', true);
+  }
+}
+
+function showStatus(msg, error = false) {
+  els.status.textContent = msg;
+  els.status.hidden = false;
+  els.status.style.background = error ? '#ffebee' : '#e8f5fd';
+  els.status.style.color = error ? '#c62828' : '#1d9bf0';
+  setTimeout(() => { els.status.hidden = true; }, 2000);
+}
+
+function startCapture() {
+  capturing = true;
+  els.captureBtn.textContent = 'Cancel';
+  els.captureHint.hidden = false;
+  document.addEventListener('keydown', onCaptureKey, { capture: true });
+}
+
+function stopCapture() {
+  capturing = false;
+  els.captureBtn.textContent = 'Change';
+  els.captureHint.hidden = true;
+  document.removeEventListener('keydown', onCaptureKey, { capture: true });
+}
+
+function onCaptureKey(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  if (e.key === 'Escape') {
+    stopCapture();
+    return;
+  }
+  settings.hotkey = e.key;
+  save();
+  render();
+  stopCapture();
+}
+
+els.captureBtn.addEventListener('click', () => {
+  if (capturing) stopCapture();
+  else startCapture();
+});
+
+els.reverseToggle.addEventListener('change', () => {
+  settings.reverseModifier = els.reverseToggle.checked ? 'Shift' : null;
+  save();
+});
+
+els.enabledToggle.addEventListener('change', () => {
+  settings.enabled = els.enabledToggle.checked;
+  save();
+});
+
+els.resetBtn.addEventListener('click', async () => {
+  settings = { ...DEFAULT_SETTINGS };
+  await save();
+  render();
+  showStatus('Reset to defaults');
+});
+
+load();

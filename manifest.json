@@ -1,0 +1,35 @@
+{
+  "manifest_version": 3,
+  "name": "LazyScroll",
+  "version": "1.0.0",
+  "description": "Scroll between posts with your keyboard. Start with Space on X.",
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "*://twitter.com/*",
+    "*://x.com/*"
+  ],
+  "background": {
+    "service_worker": "src/background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://twitter.com/*",
+        "*://x.com/*"
+      ],
+      "js": [
+        "src/content/platforms.js",
+        "src/content/sites/x.js",
+        "src/content/base.js",
+        "src/content/index.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "src/popup/popup.html"
+  }
+}
