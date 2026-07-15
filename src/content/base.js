@@ -12,9 +12,11 @@
   };
 
   const SCROLL_DURATION = 250; // ms
+  const INDICATOR_COLOR = '#7EB8A2'; // soft sage teal — easy on the eyes
 
   let settings = { ...DEFAULT_SETTINGS };
   let activeScrollRaf = null;
+  let currentHighlight = null;
 
   async function loadSettings() {
     try {
@@ -48,6 +50,32 @@
     const platform = getPlatform();
     if (!platform || typeof platform.getHeaderOffset !== 'function') return 0;
     return platform.getHeaderOffset();
+  }
+
+  function injectStyles() {
+    if (document.getElementById('lazyscroll-styles')) return;
+    const style = document.createElement('style');
+    style.id = 'lazyscroll-styles';
+    style.textContent = `.lazyscroll-current {
+      box-shadow: inset 4px 0 0 0 ${INDICATOR_COLOR} !important;
+      transition: box-shadow 0.2s ease !important;
+    }`;
+    document.head.appendChild(style);
+  }
+
+  function clearHighlight() {
+    if (currentHighlight) {
+      currentHighlight.classList.remove('lazyscroll-current');
+      currentHighlight = null;
+    }
+  }
+
+  function setHighlight(el) {
+    clearHighlight();
+    if (el) {
+      el.classList.add('lazyscroll-current');
+      currentHighlight = el;
+    }
   }
 
   function getCurrentPostIndex(posts) {
@@ -102,6 +130,7 @@
     const top = getPostTop(posts[index]);
     const offset = getHeaderOffset();
     smoothScrollTo(top - offset);
+    setHighlight(posts[index]);
   }
 
   function goNext() {
@@ -142,6 +171,7 @@
   }
 
   function init() {
+    injectStyles();
     loadSettings().then(() => {
       document.addEventListener('keydown', onKeyDown, { capture: true });
     });
