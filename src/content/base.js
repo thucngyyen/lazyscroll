@@ -11,7 +11,7 @@
     enabled: true
   };
 
-  const SCROLL_DURATION = 350; // ms
+  const SCROLL_DURATION = 250; // ms
 
   let settings = { ...DEFAULT_SETTINGS };
   let activeScrollRaf = null;
