@@ -11,7 +11,10 @@
     enabled: true
   };
 
+  const SCROLL_DURATION = 350; // ms
+
   let settings = { ...DEFAULT_SETTINGS };
+  let activeScrollRaf = null;
 
   async function loadSettings() {
     try {
@@ -24,41 +27,81 @@
     }
   }
 
+  function getPlatform() {
+    return global.LazyScroll.getCurrent();
+  }
+
   function getPosts() {
-    const platform = global.LazyScroll.getCurrent();
+    const platform = getPlatform();
     if (!platform) return [];
     const posts = platform.getPosts();
     return posts.filter(p => platform.isValidPost(p));
   }
 
   function getPostTop(post) {
-    const platform = global.LazyScroll.getCurrent();
+    const platform = getPlatform();
     if (!platform) return 0;
     return platform.getPostTop(post);
   }
 
+  function getHeaderOffset() {
+    const platform = getPlatform();
+    if (!platform || typeof platform.getHeaderOffset !== 'function') return 0;
+    return platform.getHeaderOffset();
+  }
+
   function getCurrentPostIndex(posts) {
     const scrollY = window.scrollY || window.pageYOffset;
+    const offset = getHeaderOffset();
+    const visualTop = scrollY + offset;
     const epsilon = 5;
 
     for (let i = 0; i < posts.length; i++) {
       const top = getPostTop(posts[i]);
-      // If we're at or very near this post's top, the "current" post is this one
-      if (Math.abs(top - scrollY) <= epsilon) {
+      // If we're at or very near this post's visual top, the "current" post is this one
+      if (Math.abs(top - visualTop) <= epsilon) {
         return i;
       }
-      // If this post starts below the current scroll, we're viewing the previous one
-      if (top > scrollY + epsilon) {
+      // If this post starts below the visual top, we're viewing the previous one
+      if (top > visualTop + epsilon) {
         return Math.max(i - 1, 0);
       }
     }
     return posts.length - 1;
   }
 
+  function smoothScrollTo(targetTop) {
+    if (activeScrollRaf) {
+      cancelAnimationFrame(activeScrollRaf);
+      activeScrollRaf = null;
+    }
+
+    const startY = window.scrollY || window.pageYOffset;
+    const diff = targetTop - startY;
+    const startTime = performance.now();
+
+    function step(now) {
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / SCROLL_DURATION, 1);
+      // easeOutQuad
+      const eased = progress * (2 - progress);
+      window.scrollTo(0, startY + diff * eased);
+
+      if (progress < 1) {
+        activeScrollRaf = requestAnimationFrame(step);
+      } else {
+        activeScrollRaf = null;
+      }
+    }
+
+    activeScrollRaf = requestAnimationFrame(step);
+  }
+
   function scrollToIndex(index, posts) {
     if (index < 0 || index >= posts.length) return;
     const top = getPostTop(posts[index]);
-    window.scrollTo({ top, behavior: 'smooth' });
+    const offset = getHeaderOffset();
+    smoothScrollTo(top - offset);
   }
 
   function goNext() {
