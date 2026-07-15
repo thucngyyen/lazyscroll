@@ -46,13 +46,39 @@
 
     const headers = [];
 
+    function isViewportSticky(el) {
+      let cur = el.parentElement;
+      while (cur && cur !== document.body) {
+        const style = window.getComputedStyle(cur);
+        const overflow = style.overflow + style.overflowX + style.overflowY;
+        if (/auto|scroll/.test(overflow) && cur.clientHeight < document.documentElement.clientHeight) {
+          return false;
+        }
+        cur = cur.parentElement;
+      }
+      return true;
+    }
+
+    function isVisible(el) {
+      const style = window.getComputedStyle(el);
+      return style.visibility !== 'hidden' && style.display !== 'none' && style.opacity !== '0';
+    }
+
     function collect(el) {
       const style = window.getComputedStyle(el);
+      if (!isVisible(el)) return;
       const pos = style.position;
       if (pos !== 'fixed' && pos !== 'sticky') return;
-      const topVal = parseFloat(style.top);
-      if (isNaN(topVal) || topVal > 5) return;
+      if (pos === 'sticky' && !isViewportSticky(el)) return;
+      let topVal = parseFloat(style.top);
+      let rectTop = el.getBoundingClientRect().top;
+      if (pos === 'fixed' && isNaN(topVal)) {
+        topVal = rectTop;
+      }
+      if (isNaN(topVal)) return;
+      if (topVal > 150) return; // allow stacked headers (tabs, sub-nav)
       if (el.offsetHeight <= 0) return;
+      if (rectTop > 200) return; // element is not visually near the top
       const rect = el.getBoundingClientRect();
       const spansCenter = rect.left < w / 2 && rect.right > w / 2;
       if (!spansCenter) return;
@@ -66,7 +92,7 @@
     // Fallback broader scan near top of DOM
     if (headers.length === 0) {
       const all = document.body.querySelectorAll('*');
-      for (let i = 0; i < Math.min(all.length, 400); i++) {
+      for (let i = 0; i < Math.min(all.length, 800); i++) {
         collect(all[i]);
       }
     }
