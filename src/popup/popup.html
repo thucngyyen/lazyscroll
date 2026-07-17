@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>LazyScroll</title>
+  <title>Lazy Scroll</title>
   <link rel="stylesheet" href="popup.css" />
 </head>
 <body>
   <div class="container">
-    <h1>LazyScroll</h1>
+    <h1>Lazy Scroll</h1>
     <p class="subtitle">Scroll posts with your keyboard</p>
 
     <div class="setting">
@@ -30,9 +30,24 @@
       <input type="checkbox" id="enabled-toggle" checked />
     </div>
 
+    <div class="setting toggle-row">
+      <label for="duration-select">Scroll speed</label>
+      <select id="duration-select">
+        <option value="0">Instant</option>
+        <option value="150">Fast</option>
+        <option value="250">Normal</option>
+        <option value="400" selected>Relaxed</option>
+      </select>
+    </div>
+
     <button id="reset-btn" type="button" class="secondary">Reset to Defaults</button>
 
     <div id="status" class="status" hidden></div>
+
+    <div class="footer">
+      <a href="#" id="feedback-link">Send feedback</a>
+      <a href="#" id="coffee-link">Buy me a coffee ☕</a>
+    </div>
   </div>
 
   <script src="popup.js"></script>

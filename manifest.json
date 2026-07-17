@@ -1,28 +1,45 @@
 {
   "manifest_version": 3,
-  "name": "LazyScroll",
-  "version": "1.0.0",
-  "description": "Scroll between posts with your keyboard. Start with Space on X.",
+  "name": "Lazy Scroll",
+  "version": "1.1.0",
+  "description": "Scroll between posts with your keyboard on X, Reddit, Hacker News, Bluesky, Facebook, and Instagram.",
   "permissions": [
     "storage"
   ],
   "host_permissions": [
     "*://twitter.com/*",
-    "*://x.com/*"
+    "*://x.com/*",
+    "*://*.reddit.com/*",
+    "*://news.ycombinator.com/*",
+    "*://bsky.app/*",
+    "*://*.facebook.com/*",
+    "*://*.instagram.com/*"
   ],
-  "background": {
-    "service_worker": "src/background.js",
-    "type": "module"
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
   },
   "content_scripts": [
     {
       "matches": [
         "*://twitter.com/*",
-        "*://x.com/*"
+        "*://x.com/*",
+        "*://*.reddit.com/*",
+        "*://news.ycombinator.com/*",
+        "*://bsky.app/*",
+        "*://*.facebook.com/*",
+        "*://*.instagram.com/*"
       ],
       "js": [
         "src/content/platforms.js",
         "src/content/sites/x.js",
+        "src/content/sites/reddit.js",
+        "src/content/sites/hackernews.js",
+        "src/content/sites/bluesky.js",
+        "src/content/sites/facebook.js",
+        "src/content/sites/instagram.js",
         "src/content/base.js",
         "src/content/index.js"
       ],
@@ -30,6 +47,12 @@
     }
   ],
   "action": {
-    "default_popup": "src/popup/popup.html"
+    "default_popup": "src/popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
   }
 }

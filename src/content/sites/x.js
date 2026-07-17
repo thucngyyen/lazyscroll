@@ -33,86 +33,24 @@
     return scrollY + rect.top;
   }
 
-  let cachedOffset = null;
-  let cachedWidth = null;
-  let cachedHeight = null;
-
-  function getHeaderOffset() {
-    const w = window.innerWidth;
-    const h = window.innerHeight;
-    if (cachedOffset !== null && cachedWidth === w && cachedHeight === h) {
-      return cachedOffset;
+  function getPostId(article) {
+    // The tweet's own permalink is the <a href=".../status/<id>"> wrapping its <time>.
+    // Quoted tweets embed another time-link, so only accept anchors belonging to this article.
+    const anchors = article.querySelectorAll('a[href*="/status/"]');
+    for (const a of anchors) {
+      if (!a.querySelector('time')) continue;
+      if (a.closest('article[data-testid="tweet"]') !== article) continue;
+      const m = a.getAttribute('href').match(/\/status\/(\d+)/);
+      if (m) return m[1];
     }
-
-    const headers = [];
-
-    function isViewportSticky(el) {
-      let cur = el.parentElement;
-      while (cur && cur !== document.body) {
-        const style = window.getComputedStyle(cur);
-        const overflow = style.overflow + style.overflowX + style.overflowY;
-        if (/auto|scroll/.test(overflow) && cur.clientHeight < document.documentElement.clientHeight) {
-          return false;
-        }
-        cur = cur.parentElement;
-      }
-      return true;
-    }
-
-    function isVisible(el) {
-      const style = window.getComputedStyle(el);
-      return style.visibility !== 'hidden' && style.display !== 'none' && style.opacity !== '0';
-    }
-
-    function collect(el) {
-      const style = window.getComputedStyle(el);
-      if (!isVisible(el)) return;
-      const pos = style.position;
-      if (pos !== 'fixed' && pos !== 'sticky') return;
-      if (pos === 'sticky' && !isViewportSticky(el)) return;
-      let topVal = parseFloat(style.top);
-      let rectTop = el.getBoundingClientRect().top;
-      if (pos === 'fixed' && isNaN(topVal)) {
-        topVal = rectTop;
-      }
-      if (isNaN(topVal)) return;
-      if (topVal > 150) return; // allow stacked headers (tabs, sub-nav)
-      if (el.offsetHeight <= 0) return;
-      if (rectTop > 200) return; // element is not visually near the top
-      const rect = el.getBoundingClientRect();
-      const spansCenter = rect.left < w / 2 && rect.right > w / 2;
-      if (!spansCenter) return;
-      headers.push(el);
-    }
-
-    // Likely candidates first
-    document.querySelectorAll('header, [role="banner"], nav, [data-testid="primaryColumn"] > div')
-      .forEach(collect);
-
-    // Fallback broader scan near top of DOM
-    if (headers.length === 0) {
-      const all = document.body.querySelectorAll('*');
-      for (let i = 0; i < Math.min(all.length, 800); i++) {
-        collect(all[i]);
-      }
-    }
-
-    // Remove nested elements to avoid double-counting
-    const topLevel = headers.filter((el, _, arr) => {
-      return !arr.some(other => other !== el && other.contains(el));
-    });
-
-    const total = topLevel.reduce((sum, el) => sum + el.offsetHeight, 0);
-
-    cachedOffset = total;
-    cachedWidth = w;
-    cachedHeight = h;
-    return total;
+    return null;
   }
 
-  window.addEventListener('resize', () => {
-    cachedOffset = null;
-  });
+  function getHeaderOffset() {
+    // X's sticky timeline tabs live in primaryColumn, outside the generic
+    // header/banner/nav candidates
+    return global.LazyScroll.detectHeaderOffset(['[data-testid="primaryColumn"] > div']);
+  }
 
   const XPlatform = {
     name: 'x',
@@ -120,6 +58,7 @@
     getPosts,
     isValidPost,
     getPostTop,
+    getPostId,
     getHeaderOffset
   };
 
