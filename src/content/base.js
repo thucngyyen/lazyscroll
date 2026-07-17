@@ -8,15 +8,16 @@
   const DEFAULT_SETTINGS = {
     hotkey: ' ',           // Space
     reverseModifier: 'Shift',
-    enabled: true
+    enabled: true,
+    scrollDuration: 400    // ms; 0 = instant
   };
 
-  const SCROLL_DURATION = 250; // ms
   const INDICATOR_COLOR = '#7EB8A2'; // soft sage teal — easy on the eyes
 
   let settings = { ...DEFAULT_SETTINGS };
   let activeScrollRaf = null;
   let currentHighlight = null;
+  let currentPostId = null;
 
   async function loadSettings() {
     try {
@@ -52,6 +53,12 @@
     return platform.getHeaderOffset();
   }
 
+  function getPostId(post) {
+    const platform = getPlatform();
+    if (!platform || typeof platform.getPostId !== 'function') return null;
+    return platform.getPostId(post);
+  }
+
   function injectStyles() {
     if (document.getElementById('lazyscroll-styles')) return;
     const style = document.createElement('style');
@@ -59,13 +66,37 @@
     style.textContent = `.lazyscroll-current {
       box-shadow: inset 4px 0 0 0 ${INDICATOR_COLOR} !important;
       transition: box-shadow 0.2s ease !important;
+    }
+    /* box-shadow doesn't render on table rows (Hacker News) — paint the first cell instead */
+    tr.lazyscroll-current {
+      box-shadow: none !important;
+    }
+    tr.lazyscroll-current > td:first-child {
+      box-shadow: inset 4px 0 0 0 ${INDICATOR_COLOR} !important;
+      transition: box-shadow 0.2s ease !important;
+    }
+    /* Overlay bar for posts whose children paint opaque backgrounds over an
+       inset shadow (Bluesky) — requires the post element to be positioned */
+    .lazyscroll-current.lazyscroll-overlay {
+      box-shadow: none !important;
+    }
+    .lazyscroll-current.lazyscroll-overlay::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 4px;
+      background: ${INDICATOR_COLOR};
+      z-index: 9999;
+      pointer-events: none;
     }`;
     document.head.appendChild(style);
   }
 
   function clearHighlight() {
     if (currentHighlight) {
-      currentHighlight.classList.remove('lazyscroll-current');
+      currentHighlight.classList.remove('lazyscroll-current', 'lazyscroll-overlay');
       currentHighlight = null;
     }
   }
@@ -74,6 +105,10 @@
     clearHighlight();
     if (el) {
       el.classList.add('lazyscroll-current');
+      const platform = getPlatform();
+      if (platform && platform.indicatorStyle === 'overlay') {
+        el.classList.add('lazyscroll-overlay');
+      }
       currentHighlight = el;
     }
   }
@@ -104,13 +139,25 @@
       activeScrollRaf = null;
     }
 
+    // Clamp to what the page can actually scroll — animating toward an
+    // unreachable target (past the page bottom) just burns frames
+    const maxScroll = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+    targetTop = Math.min(Math.max(0, targetTop), maxScroll);
+
     const startY = window.scrollY || window.pageYOffset;
     const diff = targetTop - startY;
+    if (Math.abs(diff) < 1) return; // already there — skip the animation
+
+    const duration = settings.scrollDuration;
+    if (!duration || duration <= 0) {
+      window.scrollTo(0, targetTop);
+      return;
+    }
     const startTime = performance.now();
 
     function step(now) {
       const elapsed = now - startTime;
-      const progress = Math.min(elapsed / SCROLL_DURATION, 1);
+      const progress = Math.min(elapsed / duration, 1);
       // easeOutQuad
       const eased = progress * (2 - progress);
       window.scrollTo(0, startY + diff * eased);
@@ -131,12 +178,43 @@
     const offset = getHeaderOffset();
     smoothScrollTo(top - offset);
     setHighlight(posts[index]);
+    currentPostId = getPostId(posts[index]);
+  }
+
+  // Virtualized feeds (X, Bluesky) unmount off-screen posts, so a bare index is
+  // unstable across keypresses. Prefer the remembered post ID — but only if that
+  // post is still near the viewport top, so manual scrolling falls back cleanly
+  // to position-based detection.
+  const ID_MATCH_TOLERANCE = 40; // px
+
+  // Near the end of the page, scrolling clamps and the target post can never
+  // reach the viewport top — position checks would stall there forever.
+  function isScrollClampedAtBottom() {
+    const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+    return (window.scrollY || window.pageYOffset) >= maxScroll - 2;
+  }
+
+  function resolveCurrentIndex(posts) {
+    if (currentPostId) {
+      const i = posts.findIndex(p => getPostId(p) === currentPostId);
+      if (i !== -1) {
+        const visualTop = (window.scrollY || window.pageYOffset) + getHeaderOffset();
+        const nearTop = Math.abs(getPostTop(posts[i]) - visualTop) <= ID_MATCH_TOLERANCE;
+        if (nearTop || isScrollClampedAtBottom()) {
+          if (posts[i] !== currentHighlight) {
+            setHighlight(posts[i]); // element was recycled; re-apply
+          }
+          return i;
+        }
+      }
+    }
+    return getCurrentPostIndex(posts);
   }
 
   function goNext() {
     const posts = getPosts();
     if (!posts.length) return;
-    const idx = getCurrentPostIndex(posts);
+    const idx = resolveCurrentIndex(posts);
     const next = Math.min(idx + 1, posts.length - 1);
     scrollToIndex(next, posts);
   }
@@ -144,7 +222,7 @@
   function goPrev() {
     const posts = getPosts();
     if (!posts.length) return;
-    const idx = getCurrentPostIndex(posts);
+    const idx = resolveCurrentIndex(posts);
     const prev = Math.max(idx - 1, 0);
     scrollToIndex(prev, posts);
   }
